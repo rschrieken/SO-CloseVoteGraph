@@ -1,0 +1,18 @@
+{
+  "name": "socvr_cvq",
+  "version": "1.0.0",
+  "description": "socvr close vote queue graph",
+  "main": "server.js",
+  "dependencies": {
+    "config": "^1.16.0",
+    "htmlparser2": "^3.8.3",
+    "mysql": "^2.9.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "author": "rene",
+  "license": "ISC"
+}
