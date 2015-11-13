@@ -38,12 +38,13 @@
         }
 
         function init() {
-            var parsed = {},
+            var parsed = { connectionLimit : 3},
                 i,
                 parts,
                 namevalue;
 
             if (process.env.MYSQLCONNSTR_DefaultConnection) {
+                console.log('parsed');
                 parts = process.env.MYSQLCONNSTR_DefaultConnection.split(';');
                 for (i = 0; i < parts.length; i = i + 1) {
                     namevalue = parts[i].split('=');
@@ -254,6 +255,7 @@
             });
         }
 
+        console.log('parser started');
         setTimeout(parseStats, fiveMinutes());
     }
 
