@@ -14,8 +14,7 @@
 
         var mysql = require('mysql'),
             dbc = config.get('mysql'),
-            pool  = mysql.createPool(dbc);
-
+            pool;
 
         function execute(query, params, result, end) {
             pool.getConnection(function (err, conn) {
@@ -37,6 +36,36 @@
         function select(query, params, result, end) {
             execute(query, params, result, end);
         }
+
+        function init() {
+            var parsed = {},
+                i,
+                parts,
+                namevalue;
+
+            if (process.env.MYSQLCONNSTR_DefaultConnection) {
+                parts = process.env.MYSQLCONNSTR_DefaultConnection.split(';');
+                for (i = 0; i < parts.length; i = i + 1) {
+                    namevalue = parts[i].split('=');
+                    if (namevalue[0] === 'Data Source') {
+                        parsed.host = namevalue[1];
+                    }
+                    if (namevalue[0] === 'Database') {
+                        parsed.database = namevalue[1];
+                    }
+                    if (namevalue[0] === 'User Id') {
+                        parsed.user = namevalue[1];
+                    }
+                    if (namevalue[0] === 'Password') {
+                        parsed.password = namevalue[1];
+                    }
+                }
+                dbc = parsed;
+            }
+            pool = mysql.createPool(dbc);
+        }
+
+        init();
 
         return {
             select: select,
@@ -230,7 +259,7 @@
 
 
     function init() {
-        var port = process.env.SERVER_PORT || 4242,
+        var port = process.env.PORT  || 4242,
             iface = process.env.SERVER_IFACE || null,
             db = new DataAccess(),
             http = new HttpServer({ port: port, iface: iface}, db),
