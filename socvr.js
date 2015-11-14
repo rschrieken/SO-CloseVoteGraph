@@ -3,29 +3,29 @@
     "use strict";
     var hc;
 
-    function loadAsync(event) {
+    function ajaxPost(data, callback) {
         var oReq = new XMLHttpRequest();
-
-        function reqListener() {
-            var points = JSON.parse(oReq.responseText);
+        oReq.addEventListener("load", callback);
+        oReq.open("POST", "/data");
+        oReq.send(JSON.stringify(data));
+    }
+    
+    function loadAsync(event) {
+ 
+        function reqListener(event) {
+            var points = JSON.parse(this.responseText);
             hc.series[0].setData(points);
             hc.hideLoading();
-          /*hc.series[0].addPoint([20000000,9]);
-          hc.series[0].addPoint([30000000,2]);*/
         }
 
         event.target.showLoading();
-
-        oReq.addEventListener("load", reqListener);
-        oReq.open("POST", "/data");
-        oReq.send(JSON.stringify({ initial: true}));
+        ajaxPost({ initial: true}, reqListener);
     }
 
     function loadSelection(event) {
-        var oReq = new XMLHttpRequest();
 
         function reqListener() {
-            var points = JSON.parse(oReq.responseText);
+            var points = JSON.parse(this.responseText);
             // we keep adding points
             // also if we might have already fetched them
             // FIX ME
@@ -38,11 +38,29 @@
         
         if (event.xAxis && event.xAxis.length > 0) {
             var xaxis = event.xAxis[0];
-            oReq.addEventListener("load", reqListener);
-            oReq.open("POST", "/data");
             event.target.showLoading();
-            oReq.send(JSON.stringify({ selection: true, low:xaxis.min , high:xaxis.max }));
+            ajaxPost({ selection: true, low:xaxis.min , high:xaxis.max }, reqListener);
         }
+    }
+    
+    function loadstat () {
+        
+        function setSpan(id, text) {
+            var element = document.getElementById(id);
+            if (element !== null) {
+                element.textContent = text;
+            }
+        }
+        function reqListener() {
+            var objects = JSON.parse(this.responseText);
+            for(var i in objects) {
+                setSpan('min',objects[i].start);
+                setSpan('max',objects[i].latest);
+                setSpan('cnt',objects[i].observations);
+            }
+        }
+                
+        ajaxPost({ stats: true }, reqListener);
     }
     
     function init() {
@@ -72,6 +90,7 @@
                 name: 'Queue'
             }]
         });
+        setTimeout(loadstat, 5000);
     }
 
     document.addEventListener("DOMContentLoaded", function (event) {

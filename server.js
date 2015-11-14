@@ -62,6 +62,8 @@
                     }
                 }
                 dbc = parsed;
+            } else {
+                dbc.connectionLimit = 3;
             }
             pool = mysql.createPool(dbc);
         }
@@ -75,7 +77,21 @@
     }
 
     function HttpServer(opt, db) {
-        var fs = require('fs');
+        var fs = require('fs'),
+            ct = [];
+
+        ct['.js'] = 'text/javascript';
+        ct['.css'] = 'text/css';
+
+        function sendUTF8(response, file) {
+            var ext = file.substr(file.lastIndexOf('.'));
+            fs.readFile(file, 'utf-8', function (error, content) {
+                if (error) {throw error; }
+                response.writeHead(200,
+                    { 'Content-Type': ct[ext] });
+                response.end(content, 'utf-8');
+            });
+        }
 
         function sendIco(response, file) {
             fs.readFile(file, function (error, content) {
@@ -86,19 +102,57 @@
         }
 
         function sendJavascript(response, file) {
-            fs.readFile(file, 'utf-8', function (error, content) {
-                if (error) {throw error; }
-                response.writeHead(200, { 'Content-Type': 'text/javascript' });
-                response.end(content, 'utf-8');
-            });
+            sendUTF8(response, file);
+        }
+
+        function sendCss(response, file) {
+            sendUTF8(response, file);
         }
 
         function sendHtml(response) {
             response.setTimeout(20000);
             response.writeHead(200, { 'Content-Type': 'text/html'});
-            response.write('<html><head><script src="/highcharts-custom.js"></script><script src="/socvr.js"></script></head><body>');
-            response.write('<h1>Close Vote Queue Graph</h1><div id="container" style="width:100%; height:400px;"></div>');
+            response.write('<html><head><link href="/socvr.css" rel="stylesheet" /><script src="/highcharts-custom.js"></script><script src="/socvr.js"></script></head><body>');
+            response.write('<h1>Close Vote Queue Graph</h1><div id="container" style="width:100%; height:400px;"></div><div id="stats">Start:&nbsp;<span id="min"></span><br />End:&nbsp;<span id="max"></span><br />Count:&nbsp;<span id="cnt"></span></div>');
             response.write('</body></html>');
+            response.end();
+        }
+
+        function renderArray(response, sql, params) {
+            var first = true;
+            response.write("[");
+            db.select(sql, params,
+                function (row) {
+                    if (!first) {response.write(','); }
+                    response.write('[');
+                    response.write(row.Time.getTime().toString());
+                    response.write(',');
+                    response.write(row.NumInQueue.toString());
+                    response.write(']');
+                    first = false;
+                },
+                function () {
+                    response.write("]");
+                    response.end();
+                });
+        }
+
+        function renderObject(response, sql, params) {
+            var first = true;
+            response.write("[");
+            db.select(sql, params,
+                function (row) {
+                    if (!first) {response.write(','); }
+                    response.write(JSON.stringify(row));
+                    first = false;
+                },
+                function () {
+                    response.write("]");
+                    response.end();
+                });
+        }
+
+        function renderEmpty(response) {
             response.end();
         }
 
@@ -109,42 +163,43 @@
                 sendJavascript(response, 'highcharts-custom.js');
             } else if (req.url === '/socvr.js' && req.method === 'GET') {
                 sendJavascript(response, 'socvr.js');
+            } else if (req.url === '/socvr.css' && req.method === 'GET') {
+                sendCss(response, 'socvr.css');
             } else if (req.url === '/favicon.ico' && req.method === 'GET') {
                 sendIco(response, 'favicon.ico');
             } else if (req.url === '/data' && req.method === 'POST') {
-
-                var first = true,
+                var render,
                     action,
                     sql,
                     params;
                 req.on('data', function (chunk) {
-                    action = JSON.parse(chunk.toString('utf-8'));
+                    try {
+                        action = JSON.parse(chunk.toString('utf-8'));
+                    } catch (err) {
+                        action = {
+                            message: err
+                        };
+                    }
                 });
                 req.on('end', function () {
                     if (action.initial) {
                         sql = 'SELECT `Time`, `NumInQueue` from `closequeue` where mod(`id`,100) = 1 order by `Time`';
+                        render = renderArray;
                     } else if (action.selection) {
                         sql = 'SELECT `Time`,`NumInQueue` from `closequeue` where `Time` between ? and ? order by `Time`';
                         params = [ new Date(action.low), new Date(action.high)];
+                        render = renderArray;
+                    } else if (action.stats) {
+                        sql = 'SELECT min(`Time`) as start,max(`Time`) as latest, count(1) as observations from `closequeue`';
+                        render = renderObject;
                     } else {
                         console.log(action);
                         response.writeHead(503, { 'Content-Type': 'text/html'});
-                        response.end();
+                        render = renderEmpty;
                         return;
                     }
                     response.writeHead(200, { 'Content-Type': 'application/json' });
-                    response.write("[");
-                    db.select(sql, params,
-                        function (row) {
-                            var write = '';
-                            if (!first) {write = ','; }
-                            response.write(write + '[' + row.Time.getTime() + ', ' + row.NumInQueue + ']');
-                            first = false;
-                        },
-                        function () {
-                            response.write("]");
-                            response.end();
-                        });
+                    render(response, sql, params);
                 });
             } else {
                 console.log('404: ' + req.method + ' ' + req.url);
