@@ -18,19 +18,23 @@
 
         function execute(query, params, result, end) {
             pool.getConnection(function (err, conn) {
-                if (err) {throw err; }
+                if (err) {
+                    console.log('connection error');
+                    if (typeof end === 'function') {end(true); }
+                    return;
+                }
 
                 conn.query(query, params)
                     .on('result', result)
                     .on('end', function () {
-                        if (typeof end === 'function') {end(); }
                         conn.release();
+                        if (typeof end === 'function') {end(false); }
                     });
             });
         }
 
-        function insert(query, params) {
-            execute(query, params, function (row) {console.log(row.insertId); });
+        function insert(query, params, end) {
+            execute(query, params, function (row) {console.log(row.insertId); }, end);
         }
 
         function select(query, params, result, end) {
@@ -131,7 +135,10 @@
                     response.write(']');
                     first = false;
                 },
-                function () {
+                function (error) {
+                    if (error) {
+                        response.write('{"error": true}');
+                    }
                     response.write("]");
                     response.end();
                 });
@@ -146,7 +153,10 @@
                     response.write(JSON.stringify(row));
                     first = false;
                 },
-                function () {
+                function (error) {
+                    if (error) {
+                        response.write('{"error": true}');
+                    }
                     response.write("]");
                     response.end();
                 });
@@ -211,7 +221,8 @@
 
     // Parse the close stats value
     function SoParser(db) {
-        var retries = 0;
+        var retries = 0,
+            missed = [];
 
         // statemachine with html parser
         function CloseStatsParser() {
@@ -220,19 +231,16 @@
                 parser = new htmlparser.Parser({
                     onopentag: function (name, attribs) {
                         if ((name === "a") && !rsc_state && attribs["class"] === "review-stats-count") {
-                            console.log("found stat");
                             rsc_state = true;
                         }
                     },
                     ontext: function (text) {
                         if (rsc_state) {
-                            console.log("-->", text);
                             parsedValue = text;
                         }
                     },
                     onclosetag: function (tagname) {
                         if ((tagname === "a") && rsc_state) {
-                            console.log("That's it?!");
                             rsc_state = false;
                         }
                     }
@@ -283,13 +291,23 @@
                     parser.write(chunk);
                 });
                 res.on('end', function () {
-                    var intValue;
+                    var intValue,
+                        values;
                     parser.end();
                     intValue = parser.getValue();
-                    console.log('No more data in response. value to store ' + intValue + ' at ' + Date.now());
+                    console.log('Value to store ' + intValue + ' at ' + Date.now());
 
                     if (!isNaN(intValue)) {
-                        db.insert('INSERT INTO `closequeue` (`Time`, `NumInQueue`) VALUES ( ?, ?)', [ getUTC(), intValue]);
+                        values = [ getUTC(), intValue];
+                        db.insert(
+                            'INSERT INTO `closequeue` (`Time`, `NumInQueue`) VALUES ( ?, ?)',
+                            values,
+                            function (err) {
+                                if (err) { missed.push(values); } // TODO Handle these missed entries
+                            }
+                        );
+                    } else {
+                        console.log('no number found');
                     }
                     // re schedule
                     setTimeout(parseStats, fiveMinutes());
