@@ -146,7 +146,12 @@
                             'INSERT INTO `closequeue` (`Time`, `NumInQueue`) VALUES ( ?, ?)',
                             values,
                             function (err) {
-                                if (err) { missed.push(values); } // TODO Handle these missed entries
+                                if (err) { 
+                                    console.log('error storing value');
+                                    process.exitCode = 1; 
+                                }
+                                
+                                process.exit();
                             }
                         );
                     } else {
@@ -166,6 +171,7 @@
                 } else {
                     retries = 0;
                     console.log('giving up');
+                    process.exit(2);
                 }
             });
         }
