@@ -7,10 +7,9 @@
 (function () {
     "use strict";
     var http = require('http'),
-        config = require('config'),
-        htmlparser = require('htmlparser2');
+        config = require('config');
 
-    function DataAccess() {
+    function DataAccess(connLimit) {
 
         var mysql = require('mysql'),
             dbc = config.get('mysql'),
@@ -41,35 +40,36 @@
             execute(query, params, result, end);
         }
 
+        function buildNameValue(dict, part) {
+            var namevalue = part.split('=');
+            dict[namevalue[0]] = namevalue[1];
+        }
+        function buildDatabaseConfig(cstr) {
+            var parts = cstr.split(';'),
+                dict = [],
+                i;
+            for (i = 0; i < parts.length; i = i + 1) {
+                buildNameValue(dict, parts[i]);
+            }
+            return dict;
+        }
+
         function init() {
-            var parsed = { connectionLimit : 3},
-                i,
-                parts,
-                namevalue;
+            var parsed = { connectionLimit : connLimit},
+                keys;
 
             if (process.env.MYSQLCONNSTR_DefaultConnection) {
                 console.log('parsed');
-                parts = process.env.MYSQLCONNSTR_DefaultConnection.split(';');
-                for (i = 0; i < parts.length; i = i + 1) {
-                    namevalue = parts[i].split('=');
-                    if (namevalue[0] === 'Data Source') {
-                        parsed.host = namevalue[1];
-                    }
-                    if (namevalue[0] === 'Database') {
-                        parsed.database = namevalue[1];
-                    }
-                    if (namevalue[0] === 'User Id') {
-                        parsed.user = namevalue[1];
-                    }
-                    if (namevalue[0] === 'Password') {
-                        parsed.password = namevalue[1];
-                    }
-                }
-                dbc = parsed;
+                keys = buildDatabaseConfig(process.env.MYSQLCONNSTR_DefaultConnection);
+                parsed.host = keys['Data Source'];
+                parsed.database = keys['Database'];
+                parsed.user = keys['User Id'];
+                parsed.password = keys['Password'];
+
             } else {
-                dbc.connectionLimit = 3;
+                console.log('no enviroment var found');
             }
-            pool = mysql.createPool(dbc);
+            pool = mysql.createPool(parsed);
         }
 
         init();
@@ -219,126 +219,11 @@
         }).listen(opt.port, opt.iface);
     }
 
-    // Parse the close stats value
-    function SoParser(db) {
-        var retries = 0,
-            missed = [];
-
-        // statemachine with html parser
-        function CloseStatsParser() {
-            var rsc_state = false,
-                parsedValue,
-                parser = new htmlparser.Parser({
-                    onopentag: function (name, attribs) {
-                        if ((name === "a") && !rsc_state && attribs["class"] === "review-stats-count") {
-                            rsc_state = true;
-                        }
-                    },
-                    ontext: function (text) {
-                        if (rsc_state) {
-                            parsedValue = text;
-                        }
-                    },
-                    onclosetag: function (tagname) {
-                        if ((tagname === "a") && rsc_state) {
-                            rsc_state = false;
-                        }
-                    }
-                }, {decodeEntities: true});
-
-            function getValue() {
-                return parseInt(parsedValue.replace(',', ''), 10);
-            }
-
-            return {
-                write: function (x) { parser.write(x); },
-                end: function () { parser.end(); },
-                getValue: getValue
-            };
-        }
-
-        function getUTC() {
-            // http://stackoverflow.com/a/9525297/578411
-            var now = new Date();
-
-            return new Date(Date.UTC(
-                now.getFullYear(),
-                now.getMonth(),
-                now.getDate(),
-                now.getHours(),
-                now.getMinutes()
-            ));
-        }
-
-        function fiveMinutes() {
-            var current = new Date(),
-                min = (Math.floor(current.getMinutes() / 5) + 1) * 5,
-                next = new Date();
-            next.setMinutes(min);
-            next.setSeconds(0);
-            return next - current;
-        }
-
-        // events every 5 minutes
-        function parseStats() {
-            console.log('parse at ' + new Date().toTimeString());
-            // fetch the page and start parsing
-            var req = http.get('http://stackoverflow.com/review/close/stats', function (res) {
-                var parser = new CloseStatsParser();
-                retries = 0;
-                res.setEncoding('utf8');
-                res.on('data', function (chunk) {
-                    parser.write(chunk);
-                });
-                res.on('end', function () {
-                    var intValue,
-                        values;
-                    parser.end();
-                    intValue = parser.getValue();
-                    console.log('Value to store ' + intValue + ' at ' + Date.now());
-
-                    if (!isNaN(intValue)) {
-                        values = [ getUTC(), intValue];
-                        db.insert(
-                            'INSERT INTO `closequeue` (`Time`, `NumInQueue`) VALUES ( ?, ?)',
-                            values,
-                            function (err) {
-                                if (err) { missed.push(values); } // TODO Handle these missed entries
-                            }
-                        );
-                    } else {
-                        console.log('no number found');
-                    }
-                    // re schedule
-                    setTimeout(parseStats, fiveMinutes());
-                });
-            });
-
-            req.on('error', function (e) {
-                console.log('problem with request: ' + e.message);
-                if (retries < 3) {
-                    console.log('retry ' + retries);
-                    setTimeout(parseStats, 5000);
-                    retries = retries + 1;
-                } else {
-                    retries = 0;
-                    console.log('give up');
-                    setTimeout(parseStats, fiveMinutes());
-                }
-            });
-        }
-
-        console.log('parser started');
-        setTimeout(parseStats, fiveMinutes());
-    }
-
-
     function init() {
         var port = process.env.PORT  || 4242,
             iface = process.env.SERVER_IFACE || null,
-            db = new DataAccess(),
+            db = new DataAccess(3),
             http = new HttpServer({ port: port, iface: iface}, db);
-            // parse = new SoParser(db);
 
         console.log('running');
     }

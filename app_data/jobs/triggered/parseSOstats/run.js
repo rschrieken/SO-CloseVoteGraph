@@ -8,7 +8,7 @@
     var http = require('http'),
         htmlparser = require('htmlparser2');
 
-    function DataAccess() {
+    function DataAccess(connLimit) {
 
         var mysql = require('mysql'),
             pool;
@@ -34,30 +34,32 @@
             execute(query, params, function (row) {console.log(row.insertId); }, end);
         }
 
+        function buildNameValue(dict, part) {
+            var namevalue = part.split('=');
+            dict[namevalue[0]] = namevalue[1];
+        }
+        function buildDatabaseConfig(cstr) {
+            var parts = cstr.split(';'),
+                dict = [],
+                i;
+            for (i = 0; i < parts.length; i = i + 1) {
+                buildNameValue(dict, parts[i]);
+            };
+            return dict;
+        }
+        
         function init() {
-            var parsed = { connectionLimit : 3},
-                i,
-                parts,
-                namevalue;
+            var parsed = { connectionLimit : connLimit},
+                keys;
 
             if (process.env.MYSQLCONNSTR_DefaultConnection) {
                 console.log('parsed');
-                parts = process.env.MYSQLCONNSTR_DefaultConnection.split(';');
-                for (i = 0; i < parts.length; i = i + 1) {
-                    namevalue = parts[i].split('=');
-                    if (namevalue[0] === 'Data Source') {
-                        parsed.host = namevalue[1];
-                    }
-                    if (namevalue[0] === 'Database') {
-                        parsed.database = namevalue[1];
-                    }
-                    if (namevalue[0] === 'User Id') {
-                        parsed.user = namevalue[1];
-                    }
-                    if (namevalue[0] === 'Password') {
-                        parsed.password = namevalue[1];
-                    }
-                }
+                keys = buildDatabaseConfig(process.env.MYSQLCONNSTR_DefaultConnection);
+                parsed.host = keys['Data Source']
+                parsed.database = keys['Database'];
+                parsed.user = keys['User Id'];
+                parsed.password = keys['Password'];
+             
             } else {
                 console.log('no enviroment var found');
             }
@@ -182,7 +184,7 @@
 
 
     function init() {
-        var db = new DataAccess(),
+        var db = new DataAccess(1),
             parse = new SoParser(db);
 
         console.log('running');
