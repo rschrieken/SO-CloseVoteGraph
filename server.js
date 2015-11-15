@@ -337,8 +337,8 @@
         var port = process.env.PORT  || 4242,
             iface = process.env.SERVER_IFACE || null,
             db = new DataAccess(),
-            http = new HttpServer({ port: port, iface: iface}, db),
-            parse = new SoParser(db);
+            http = new HttpServer({ port: port, iface: iface}, db);
+            // parse = new SoParser(db);
 
         console.log('running');
     }
