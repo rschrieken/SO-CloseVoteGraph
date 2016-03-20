@@ -16,9 +16,8 @@ Code is jslint-ed
 
 ### Layout of the source
 
-- server.js contains the sever-side node-js stuff basically running an HttpServer with a couple of dedicated end-points and a small DataAccess layer to handle MySql queries
--  rin .js in app_data/jobs/triggered/parseSOstats  is triggered every 5 minutes and scrapes the /review/stats page with a simple htmlparser and stores the result in MySql
--  
+- server.js contains the sever-side node-js stuff basically running an HttpServer with a couple of dedicated end-points and a small DataAccess layer to handle MySql queries  
+-  run.js in app_data/jobs/triggered/parseSOstats  is triggered every 5 minutes and scrapes the /review/stats page with a simple htmlparser and stores the result in MySql
 
 ### MySql
 
