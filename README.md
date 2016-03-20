@@ -12,7 +12,6 @@ Code is jslint-ed
 - HTML
 - JavaScript
 - Highcharts
-- 
 
 ### Layout of the source
 
