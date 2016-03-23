@@ -2,6 +2,7 @@
 (function () {
     "use strict";
     var hc;
+    var default_data;
 
     function ajaxPost(data, callback) {
         var oReq = new XMLHttpRequest();
@@ -9,12 +10,13 @@
         oReq.open("POST", "/data");
         oReq.send(JSON.stringify(data));
     }
-    
+
     function loadAsync(event) {
- 
+
         function reqListener(event) {
             var points = JSON.parse(this.responseText);
             hc.series[0].setData(points);
+            default_data = points;
             hc.hideLoading();
         }
 
@@ -29,22 +31,23 @@
             // we keep adding points
             // also if we might have already fetched them
             // FIX ME
-            for(var i in points) {
-                hc.series[0].addPoint(points[i], false);
-            }
+            hc.series[0].setData(points);
             hc.hideLoading();
-            hc.redraw();
         }
-        
-        if (event.xAxis && event.xAxis.length > 0) {
+
+        if ("resetSelection" in event) {
+            hc.series[0].setData([]);
+            hc.series[0].setData(default_data);
+            hc.hideLoading();
+        } else if (event.xAxis && event.xAxis.length > 0) {
             var xaxis = event.xAxis[0];
             event.target.showLoading();
             ajaxPost({ selection: true, low:xaxis.min , high:xaxis.max }, reqListener);
         }
     }
-    
+
     function loadstat () {
-        
+
         function setSpan(id, text) {
             var element = document.getElementById(id);
             if (element !== null) {
@@ -59,10 +62,10 @@
                 setSpan('cnt',objects[i].observations);
             }
         }
-                
+
         ajaxPost({ stats: true }, reqListener);
     }
-    
+
     function init() {
         hc = new Highcharts.Chart({
             chart : {
