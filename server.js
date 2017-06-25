@@ -193,7 +193,7 @@
                 });
                 req.on('end', function () {
                     if (action.initial) {
-                        sql = 'SELECT `Time`, `NumInQueue` from `closequeue` where mod(`id`,100) = 1 order by `Time`';
+                        sql = 'SELECT `Time`, `NumInQueue` from `closequeue` where mod(`id`,1000) = 1 order by `Time`';
                         render = renderArray;
                     } else if (action.selection) {
                         sql = 'SELECT `Time`,`NumInQueue` from `closequeue` where `Time` between ? and ? order by `Time`';
