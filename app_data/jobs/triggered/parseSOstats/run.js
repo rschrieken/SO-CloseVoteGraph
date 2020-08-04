@@ -5,7 +5,7 @@
 
 (function () {
     "use strict";
-    var http = require('http'),
+    var http = require('https'),
         htmlparser = require('htmlparser2');
 
     function DataAccess(connLimit) {
@@ -128,7 +128,7 @@
         function parseStats() {
             console.log('parse at ' + new Date().toTimeString());
             // fetch the page and start parsing
-            var req = http.get('http://stackoverflow.com/review/close/stats', function (res) {
+            var req = http.get('https://stackoverflow.com/review/close/stats', function (res) {
                 var parser = new CloseStatsParser();
                 retries = 0;
                 res.setEncoding('utf8');
