@@ -1,8 +1,0 @@
-{ 
-    "mysql": { 
-            "host"     : "server",
-            "user"     : "user",
-            "password" : "pwd",
-            "database" : "dev-db"
-        }
-}

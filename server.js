@@ -192,14 +192,14 @@
                     }
                 });
                 req.on('end', function () {
-                    if (action.initial) {
+                    if (action && action.initial) {
                         sql = 'SELECT `Time`, `NumInQueue` from `closequeue` where mod(`id`,100) = 1 order by `Time`';
                         render = renderArray;
-                    } else if (action.selection) {
+                    } else if (action && action.selection) {
                         sql = 'SELECT `Time`,`NumInQueue` from `closequeue` where `Time` between ? and ? order by `Time`';
                         params = [ new Date(action.low), new Date(action.high)];
                         render = renderArray;
-                    } else if (action.stats) {
+                    } else if (action && action.stats) {
                         sql = 'SELECT min(`Time`) as start,max(`Time`) as latest, count(1) as observations from `closequeue`';
                         render = renderObject;
                     } else {
