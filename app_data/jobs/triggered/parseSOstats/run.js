@@ -80,17 +80,35 @@
 
         // statemachine with html parser
         function CloseStatsParser() {
-            var rsc_state = false,
+            var rsc_firstSpan = false,
+                rsc_secondSpan = false,
+                rsc_foundValue = false,
+                rsc_nextSpan = false,
+                spanValue,
                 parsedValue,
                 parser = new htmlparser.Parser({
                     onopentag: function (name, attribs) {
-                        if ((name === "a") && !rsc_state && attribs["class"] === "review-stats-count") {
-                            rsc_state = true;
+                        const classNames = attribs["class"].split(' ').map( v => v.trim());
+
+                        function hasClass(className) {
+                            return classNames.indexOf(className) > -1;
+                        }
+                        if (name === 'span' &&  hasClass('d-block') && hasClass('fs-title') && hasClass('.fw-bold')) {
+                            rsc_firstSpan = true;
+                        } else if (name === 'span' && !rsc_secondSpan && rsc_nextSpan) {
+                            rsc_secondSpan = true;
                         }
                     },
                     ontext: function (text) {
-                        if (rsc_state) {
-                            parsedValue = text;
+                        if (rsc_foundValue) return;
+                        if (rsc_firstSpan && !rsc_nextSpan){
+                            spanValue = text;
+                            rsc_nextSpan = true;
+                        } else if (rsc_secondSpan && rsc_nextSpan) {
+                            if (text === 'need review') {
+                                rsc_foundValue = true;
+                                parsedValue = spanValue;
+                            }
                         }
                     },
                     onclosetag: function (tagname) {
