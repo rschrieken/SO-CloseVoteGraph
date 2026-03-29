@@ -8,14 +8,15 @@
   },
   "main": "server.js",
   "dependencies": {
-    "config": "^1.16.0",
+    "config": "^4.4.1",
     "htmlparser2": "^3.8.3",
     "mysql": "^2.9.0"
   },
   "devDependencies": {},
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 0",
-    "start": "node server.js"
+    "start": "node server.js",
+    "start:dev": "node --trace-deprecation server.js"
   },
   "author": "rene",
   "license": "ISC"
