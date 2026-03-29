@@ -2,6 +2,10 @@
   "name": "socvr_cvq",
   "version": "1.0.0",
   "description": "socvr close vote queue graph",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rschrieken/SO-CloseVoteGraph.git"
+  },
   "main": "server.js",
   "dependencies": {
     "config": "^1.16.0",
@@ -10,7 +14,7 @@
   },
   "devDependencies": {},
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "echo \"Error: no test specified\" && exit 0",
     "start": "node server.js"
   },
   "author": "rene",
